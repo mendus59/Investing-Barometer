@@ -27,6 +27,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Test scoring rules
+        run: python -m unittest discover tests
+
       - name: Fetch data and compute signals
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
