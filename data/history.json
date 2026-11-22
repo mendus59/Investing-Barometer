@@ -5,22 +5,90 @@
    "action": "Hold",
    "score": -1
   },
+  "intl": {
+   "action": "Hold",
+   "score": 0
+  },
   "bonds": {
    "action": "Hold",
    "score": 0
   },
+  "tips": {
+   "action": "Buy",
+   "score": 2
+  },
+  "corp": {
+   "action": "Hold",
+   "score": 0
+  },
+  "hy": {
+   "action": "Hold",
+   "score": 0
+  },
+  "reits": {
+   "action": "Hold",
+   "score": -1
+  },
+  "commodities": {
+   "action": "Buy",
+   "score": 2
+  },
+  "gold": {
+   "action": "Hold",
+   "score": -1
+  },
   "cash": {
    "action": "Hold",
    "score": 1
+  },
+  "bitcoin": {
+   "action": "Sell",
+   "score": -2
   },
   "housing": {
    "action": "Hold",
    "score": 0
   },
   "allocation": {
-   "stocks": 60,
-   "bonds": 30,
-   "cash": 10
+   "conservative": {
+    "stocks": 19,
+    "intl": 8,
+    "bonds": 29,
+    "tips": 13,
+    "corp": 10,
+    "hy": 0,
+    "reits": 2,
+    "commodities": 0,
+    "gold": 3,
+    "cash": 16,
+    "bitcoin": 0
+   },
+   "moderate": {
+    "stocks": 37,
+    "intl": 15,
+    "bonds": 15,
+    "tips": 6,
+    "corp": 7,
+    "hy": 3,
+    "reits": 5,
+    "commodities": 2,
+    "gold": 3,
+    "cash": 7,
+    "bitcoin": 0
+   },
+   "aggressive": {
+    "stocks": 50,
+    "intl": 22,
+    "bonds": 5,
+    "tips": 0,
+    "corp": 3,
+    "hy": 5,
+    "reits": 7,
+    "commodities": 4,
+    "gold": 2,
+    "cash": 1,
+    "bitcoin": 1
+   }
   }
  }
 ]
