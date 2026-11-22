@@ -193,6 +193,9 @@ h3.sub { font-size: 1rem; margin: 20px 0 8px; }
 .zip-result .stats { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 .zip-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .zip-head h3 { margin: 0; font-size: 1.15rem; }
+.nearby h4 { margin: 8px 0 4px; font-size: 1rem; }
+.nearby .linkbtn { justify-self: start; }
+.linklike { font: inherit; background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font-weight: 600; }
 .zip-note { font-size: 0.82rem; color: var(--muted); }
 
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px 8px; margin-bottom: 12px; }

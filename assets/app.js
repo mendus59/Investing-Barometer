@@ -189,6 +189,78 @@
     return { factors, score, action: scoreToAction(score, avail), payment, ownCost };
   }
 
+  // ------------------------------------------------------------------ nearby Buy search
+  const SEARCH_RADII = [50, 150, 400]; // miles; widen until something turns up
+  const MOVE_COST = 0.08;              // ~8% of the sale price for agent fees, closing costs and moving
+
+  function miles(la1, lo1, la2, lo2) {
+    const R = 3958.8, rad = Math.PI / 180;
+    const dLa = (la2 - la1) * rad, dLo = (lo2 - lo1) * rad;
+    const a = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * rad) * Math.cos(la2 * rad) * Math.sin(dLo / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  let nearIndex = null;
+  async function loadNear() {
+    if (!nearIndex) {
+      const r = await fetch("data/zip/near.json");
+      if (!r.ok) throw new Error("the nearby-ZIP index hasn't been built yet");
+      nearIndex = await r.json();
+    }
+    return nearIndex;
+  }
+
+  async function findNearbyBuys(z, rec, el) {
+    if (!isNum(rec.la)) { el.innerHTML = `<p class="hint">No location on file for ${esc(z)}, so a nearby search isn't possible.</p>`; return; }
+    el.innerHTML = `<p class="hint">Searching nearby ZIP codes…</p>`;
+    let idx;
+    try { idx = await loadNear(); } catch (err) { el.innerHTML = `<p class="hint">Nearby search isn't available yet: ${esc(err.message)}.</p>`; return; }
+    const cands = [];
+    for (let k = 0; k < idx.z.length; k++) {
+      if (idx.z[k] === z) continue;
+      const d = miles(rec.la, rec.lo, idx.la[k], idx.lo[k]);
+      if (d <= SEARCH_RADII[SEARCH_RADII.length - 1]) cands.push([d, k]);
+    }
+    cands.sort((a, b) => a[0] - b[0]);
+    const buys = [];
+    let holds = 0, radius = SEARCH_RADII[0];
+    for (const r of SEARCH_RADII) {
+      radius = r;
+      for (const [d, k] of cands) {
+        if (d > r) break;
+        if (buys.some((b) => b.k === k)) continue;
+        const other = { v: idx.v[k], y1: idx.y1[k], r: idx.r[k], i: idx.i[k] };
+        const a = zipAnalysis(idx.z[k], other);
+        if (a.action === "Buy") buys.push({ k, d, a, rec: other });
+        else if (a.action === "Hold" && r === SEARCH_RADII[0]) holds++;
+        if (buys.length >= 5) break;
+      }
+      if (buys.length) break;
+    }
+    if (!buys.length) {
+      el.innerHTML = `<p class="hint">No ZIP within ${radius} miles of ${esc(z)} scores Buy right now. Rates and prices are the main obstacles nationally, so this can change as mortgage rates move.</p>`;
+      return;
+    }
+    const net = (b) => rec.v * (1 - MOVE_COST) - b.rec.v;
+    el.innerHTML = `<h4>Nearest Buy ZIP codes</h4>
+      <p class="hint" style="margin:0 0 8px">Sorted by distance from ${esc(z)}, searched out to ${radius} miles. "Cash freed up" is a typical home's value here, minus ~${Math.round(MOVE_COST * 100)}% for selling, buying and moving costs, minus a typical home's value there.</p>
+      <div class="table-wrap"><table><thead><tr><th>ZIP</th><th class="num">Distance</th><th class="num">Typical value</th><th class="num">1-yr change</th><th class="num">Price-to-rent</th><th class="num">Cash freed up</th><th class="num">Score</th></tr></thead><tbody>${buys
+        .map((b) => {
+          const p2r = isNum(b.rec.r) ? (b.rec.v / (b.rec.r * 12)).toFixed(1) + "×" : "n/a";
+          const place = [idx.c[b.k], idx.s[b.k]].filter(Boolean).join(", ");
+          return `<tr><td><button type="button" class="linklike" data-zip="${esc(idx.z[b.k])}">${esc(idx.z[b.k])}</button> <span class="asof">${esc(place)}</span></td>
+            <td class="num">${b.d.toFixed(0)} mi</td><td class="num">${fmtMoney(b.rec.v)}</td><td class="num">${signed(b.rec.y1, 1, "%")}</td>
+            <td class="num">${p2r}</td><td class="num">${(() => { const n = net(b); return `<span class="${n >= 0 ? "up" : "down"}">${n >= 0 ? "+" : "−"}${fmtCompactMoney(Math.abs(n))}</span>`; })()}</td><td class="num">+${b.a.score}</td></tr>`;
+        })
+        .join("")}</tbody></table></div>
+      <p class="hint" style="margin-top:8px">A Buy here means local conditions favor buyers (affordability, rent comparison, cooling prices), not a guaranteed profit. Check commute, schools and taxes before moving, and remember that Zillow values are area-wide typical values, not your home's price.</p>`;
+    el.querySelectorAll("button[data-zip]").forEach((btn) => btn.addEventListener("click", () => {
+      $("zip").value = btn.dataset.zip;
+      lookupZip(btn.dataset.zip);
+      $("zip").scrollIntoView({ behavior: "smooth", block: "center" });
+    }));
+  }
+
   const zipCache = {};
   async function lookupZip(z) {
     const out = $("zip-out");
@@ -219,7 +291,11 @@
         </div>
         ${isNum(a.ownCost) && isNum(rec.r) ? `<p class="hint" style="margin:0">Owning a typical home here costs roughly <b>${fmtMoney(a.ownCost)}/mo</b> (principal & interest plus ~1.5% a year for taxes, insurance and upkeep) vs. <b>${fmtMoney(rec.r)}/mo</b> to rent. This ignores the down payment's opportunity cost, tax breaks and appreciation.</p>` : ""}
         <ul class="factors">${factorList(a.factors)}</ul>
+        <div class="nearby" id="nearby">${a.action === "Sell" ? "" : `<button type="button" class="linkbtn" id="nearby-btn">Find nearby Buy ZIP codes</button>`}</div>
       </div>`;
+      const nearbyEl = $("nearby");
+      if (a.action === "Sell") findNearbyBuys(z, rec, nearbyEl);
+      else $("nearby-btn").addEventListener("click", () => findNearbyBuys(z, rec, nearbyEl));
     } catch (err) {
       out.innerHTML = `<p class="hint">ZIP data isn't available yet. It builds once a week. (${esc(err.message)})</p>`;
     }
