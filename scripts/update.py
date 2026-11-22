@@ -35,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
-START_DATE = "2000-01-01"
+START_DATE = "1990-01-01"
 HISTORY_MAX_DAYS = 730
 TIMELINE_START = date(2010, 1, 1)
 
@@ -1026,6 +1026,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fixtures", type=Path, help="Read <dir>/<SERIES>.csv instead of fetching")
     ap.add_argument("--out", type=Path, default=DATA_DIR, help="Output directory (default: data/)")
+    ap.add_argument("--dump", type=Path, help="Also save every fetched series as <dir>/<SERIES>.csv")
     args = ap.parse_args()
     DATA_DIR = args.out
 
@@ -1041,6 +1042,9 @@ def main() -> int:
         except Exception as err:  # noqa: BLE001 - one bad series shouldn't sink the run
             print(f"  {sid:15} FAILED: {err}", file=sys.stderr)
             obs = []
+        if args.dump and obs:
+            args.dump.mkdir(parents=True, exist_ok=True)
+            (args.dump / f"{sid}.csv").write_text("observation_date," + sid + "\n" + "".join(f"{d},{v}\n" for d, v in obs))
         if not obs:
             failures.append(sid)
         series[sid] = Series(sid, obs)
