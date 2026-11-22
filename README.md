@@ -56,8 +56,9 @@ covers about 10 years because FRED only carries 10 years of S&P 500 history. No 
 2. **(Recommended) Add a FRED API key.** Without one, the script uses FRED's public CSV download, which works but is
    less reliable for automated jobs. Get a free key at <https://fredaccount.stlouisfed.org/apikeys>, then add it under
    *Settings → Secrets and variables → Actions → New repository secret* with the name `FRED_API_KEY`.
-3. (Optional) A free Census API key (<https://api.census.gov/data/key_signup.html>) saved as `CENSUS_API_KEY` makes
-   the income download more reliable. It works without one.
+3. **(Recommended) Add a Census API key** for the ZIP lookup's local income and affordability figures. The Census API
+   now refuses keyless downloads of this size. Get a free key at <https://api.census.gov/data/key_signup.html> and save
+   it as the repository secret `CENSUS_API_KEY`. Without it, ZIP lookups still work but skip the income-based factor.
 4. Run the workflow once: *Actions → Update data and deploy → Run workflow*.
 
 The site will be at `https://mendus59.github.io/Investing-Barometer/`.
