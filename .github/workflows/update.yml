@@ -35,6 +35,12 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python scripts/update.py
 
+      - name: Refresh ZIP code housing data (weekly)
+        continue-on-error: true
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        run: python scripts/update_zip.py
+
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
