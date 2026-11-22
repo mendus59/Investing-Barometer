@@ -134,8 +134,15 @@ def census_income(path: str | None) -> tuple[int | None, dict[str, int]]:
 
 def parse_gazetteer(text: str) -> dict[str, tuple[float, float]]:
     lines = text.splitlines()
-    header = [h.strip() for h in lines[0].split("\t")]
-    gi, la, lo = header.index("GEOID"), header.index("INTPTLAT"), header.index("INTPTLONG")
+    header = [h.strip().lstrip("\ufeff").upper() for h in lines[0].split("\t")]
+
+    def col(*prefixes):
+        for i, h in enumerate(header):
+            if any(h.startswith(p) for p in prefixes):
+                return i
+        raise ValueError(f"no {prefixes[0]} column in Gazetteer header {header}")
+
+    gi, la, lo = col("GEOID", "ZCTA"), col("INTPTLAT"), col("INTPTLONG", "INTPTLON")
     out = {}
     for line in lines[1:]:
         parts = [p.strip() for p in line.split("\t")]
@@ -155,11 +162,11 @@ def zip_coords(path: str | None) -> tuple[int | None, dict[str, tuple[float, flo
             raw = get(GAZETTEER_URL.format(year=year), retries=2)
             with zipfile.ZipFile(io.BytesIO(raw)) as zf:
                 name = next(n for n in zf.namelist() if n.endswith(".txt"))
-                text = zf.read(name).decode("utf-8", "replace")
-        except Exception as err:  # noqa: BLE001 - not published yet, try older
-            print(f"  Gazetteer {year}: unavailable ({str(err)[:80]})")
+                text = zf.read(name).decode("utf-8-sig", "replace")
+            coords = parse_gazetteer(text)
+        except Exception as err:  # noqa: BLE001 - not published yet or new format, try older
+            print(f"  Gazetteer {year}: unavailable ({str(err)[:300]})")
             continue
-        coords = parse_gazetteer(text)
         print(f"  Gazetteer {year}: {len(coords)} ZIP centroids")
         return year, coords
     return None, {}
