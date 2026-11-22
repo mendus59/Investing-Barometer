@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investing Barometer</title>
+  <meta name="description" content="A daily, rules-based read on stocks, bonds, cash and housing using public Federal Reserve data. Educational only, not financial advice.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="wrap">
+    <h1>Investing Barometer</h1>
+    <p class="lede">A daily, rules-based read on the market using public Federal Reserve data.</p>
+    <p class="meta" id="updated">Loading data…</p>
+  </header>
+
+  <div class="wrap">
+    <aside class="disclaimer" role="note">
+      <strong>Not financial advice.</strong> This page is an automated, educational summary built from a handful of
+      simple rules. It does not know your goals, timeline, taxes or risk tolerance, and past patterns do not guarantee
+      future results. Talk to a licensed financial professional before making investment decisions.
+    </aside>
+  </div>
+
+  <main class="wrap" id="app" hidden>
+    <section>
+      <h2>Today's signals</h2>
+      <div class="cards" id="signals"></div>
+    </section>
+
+    <section>
+      <h2>Illustrative allocation</h2>
+      <p class="hint">Starts from a moderate 60% stocks / 30% bonds / 10% cash mix and tilts it by today's signals.</p>
+      <div id="allocation"></div>
+    </section>
+
+    <section>
+      <h2>Borrowing</h2>
+      <p class="hint">Compared with a long-run stock return of about <span id="expected"></span>% a year.</p>
+      <div class="table-wrap"><table id="loans"></table></div>
+      <div class="refi">
+        <label for="myrate">Your current mortgage rate (%)</label>
+        <input id="myrate" type="number" step="0.01" min="0" max="20" placeholder="e.g. 7.25" inputmode="decimal">
+        <p id="refi-out" class="hint" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Stock market</h2>
+      <p class="hint">Price returns from FRED (dividends excluded). Long-run S&amp;P 500 average: about <span id="lr-nom"></span>% a year with dividends, <span id="lr-real"></span>% after inflation.</p>
+      <div class="table-wrap"><table id="markets"></table></div>
+    </section>
+
+    <section>
+      <h2>Interest rates &amp; bonds</h2>
+      <div class="table-wrap"><table id="rates"></table></div>
+    </section>
+
+    <section>
+      <h2>Housing</h2>
+      <div class="table-wrap"><table id="housing"></table></div>
+    </section>
+
+    <section>
+      <h2>Economy</h2>
+      <div class="stats" id="economy"></div>
+    </section>
+
+    <section>
+      <h2>Signal history</h2>
+      <div class="table-wrap"><table id="history"></table></div>
+    </section>
+
+    <section>
+      <h2>How it works</h2>
+      <div class="method">
+        <p>Every day a GitHub Actions job downloads the latest values from
+          <a href="https://fred.stlouisfed.org/">FRED</a>, the St. Louis Fed's free economic database. Each category is
+          scored on a few factors. Each factor adds +1 (favorable), 0 (neutral) or −1 (unfavorable).</p>
+        <ul>
+          <li>A total of <strong>+2 or more</strong> is <em>Buy</em> (or <em>Overweight</em> for cash).</li>
+          <li>A total of <strong>−2 or less</strong> is <em>Sell</em> (or <em>Underweight</em>).</li>
+          <li>Anything in between is <em>Hold</em>.</li>
+        </ul>
+        <p>For housing, the view is that of someone buying a home to live in. <em>Buy</em> means conditions favor buyers;
+          <em>Sell</em> means a seller's market. Some series (home prices, income, consumer loan rates) are published
+          monthly, quarterly or yearly, so their "as of" dates lag.</p>
+        <p>The rules are intentionally simple and transparent. You can read them all in
+          <a href="https://github.com/mendus59/Investing-Barometer/blob/main/scripts/update.py">scripts/update.py</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>Data: Federal Reserve Bank of St. Louis (FRED), with series from Freddie Mac, the Federal Reserve Board, U.S. Treasury,
+      S&amp;P Dow Jones Indices, Cboe, ICE BofA, U.S. Census Bureau and BLS. Educational use only. Not financial advice.</p>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
