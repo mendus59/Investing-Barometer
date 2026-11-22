@@ -1,12 +1,16 @@
 {
- "generated_at": "2026-11-22T05:35:29Z",
+ "generated_at": "2026-11-22T06:37:12Z",
  "zhvi_as_of": "2026-10",
  "zori_as_of": "2026-10",
- "income_year": null,
+ "income_year": 2024,
+ "coords_year": 2026,
+ "located_count": 27982,
+ "version": 2,
  "zip_count": 27996,
  "sources": {
   "home_values": "Zillow Home Value Index (ZHVI), all homes, middle tier, smoothed & seasonally adjusted",
   "rents": "Zillow Observed Rent Index (ZORI), all homes",
-  "income": "US Census Bureau, American Community Survey 5-year estimates (B19013)"
+  "income": "US Census Bureau, American Community Survey 5-year estimates (B19013)",
+  "locations": "US Census Bureau Gazetteer, ZIP Code Tabulation Area centroids"
  }
 }
