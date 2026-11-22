@@ -131,7 +131,8 @@ PROFILES = {
         "core": {"stocks": 85, "bonds": 12, "cash": 3},
     },
 }
-TILT = 0.3  # a Buy raises a slice's weight by 30%, a Sell cuts it by 30%, before re-normalizing
+TILT = 0.15            # each net factor point moves a slice's weight by 15%, before re-normalizing
+TILT_RANGE = (0.25, 1.75)  # a slice never drops below 25% or rises above 175% of its baseline
 
 
 # --------------------------------------------------------------------------- #
@@ -429,33 +430,47 @@ def recession_factor(sc: Scorer, s: dict[str, Series]):
 def stocks_signal(s: dict[str, Series], cpi_yoy: float | None) -> dict:
     sc = Scorer()
     sp = s["SP500"]
-    trend_factor(sc, sp, "S&P 500")
+    # Trend following (e.g. Faber 2007): above the ~10-month / 200-day average is risk-on, below is risk-off.
+    trend_factor(sc, sp, "S&P 500", band=0.0)
 
+    # Time-series momentum (Moskowitz, Ooi & Pedersen 2012): 12-month return vs. what cash paid.
     r1 = sp.pct_change(365)
-    if r1 is not None:
-        score = -1 if r1 > 25 else (1 if r1 < -10 else 0)
-        sc.add("Momentum vs. history", score,
-               f"Trailing 1-year price return is {r1:.1f}% vs. a long-run average near {LONG_RUN['sp500_nominal_annual']:.0f}%. "
-               + ("Gains this large often cool off." if score == -1 else "A deep drawdown has historically been a better entry point." if score == 1 else "Within a normal range."))
+    tb = s["DGS3MO"].mean_since(365)
+    if r1 is not None and tb is not None:
+        excess = r1 - tb
+        score = 1 if excess > 0 else -1
+        sc.add("12-month momentum", score,
+               f"Over 12 months the S&P 500 returned {r1:.1f}% vs. about {tb:.1f}% from T-bills. "
+               + ("Stocks are beating cash, and that tends to persist." if score == 1 else "Stocks are trailing cash, a classic risk-off sign."))
     else:
-        sc.add("Momentum vs. history", None, "1-year return unavailable.")
+        sc.add("12-month momentum", None, "1-year return unavailable.")
 
+    # Volatility management (Moreira & Muir 2017): cut risk when volatility is high, since returns
+    # don't rise enough to compensate. (Earlier versions treated a high VIX as a contrarian buy.)
     vix = s["VIXCLS"].last
     if vix is not None:
-        score = 1 if vix > 30 else (-1 if vix < 13 else 0)
-        sc.add("Fear gauge (VIX)", score,
-               f"VIX is {vix:.1f}. " + ("High fear has often marked good long-term entry points." if score == 1
-                                        else "Very low volatility can signal complacency." if score == -1 else "Normal range (13-30)."))
+        score = -1 if vix > 30 else 0
+        sc.add("Volatility (VIX)", score,
+               f"VIX is {vix:.1f}. " + ("Very high volatility: smaller positions keep risk steady." if score == -1
+                                        else "Normal or calm (below 30)."))
     else:
-        sc.add("Fear gauge (VIX)", None, "VIX unavailable.")
+        sc.add("Volatility (VIX)", None, "VIX unavailable.")
 
+    # Recession risk: rising unemployment (Sahm-style), or an inverted curve that the market trend confirms.
+    # An inverted curve alone was a poor timing tool (inverted for most of 2022-24 while stocks rallied).
+    sahm = sahm_like(s)
     curve = s["T10Y3M"].last
-    if curve is not None:
-        score = -1 if curve < 0 else 0
-        sc.add("Yield curve", score,
-               f"10-year minus 3-month spread is {fmt(curve, ' pts')}. " + ("Inverted curves have preceded most US recessions." if curve < 0 else "Not inverted."))
+    ma = sp.moving_average(200)
+    below_trend = bool(sp and ma and sp.last < ma)
+    if sahm is None and curve is None:
+        sc.add("Recession risk", None, "Unemployment and yield-curve data unavailable.")
+    elif sahm is not None and sahm >= 0.5:
+        sc.add("Recession risk", -1, f"Unemployment has risen {sahm:.1f} pts off its low, the classic early-recession signal.")
+    elif curve is not None and curve < 0 and below_trend:
+        sc.add("Recession risk", -1, f"The yield curve is inverted ({fmt(curve, ' pts')}) and stocks have broken below trend.")
     else:
-        sc.add("Yield curve", None, "Spread unavailable.")
+        note = f"Yield curve {fmt(curve, ' pts')}" if curve is not None else "Yield curve n/a"
+        sc.add("Recession risk", 0, f"{note}; no confirmed recession warning.")
 
     credit_stress_factor(sc, s)
 
@@ -514,6 +529,16 @@ def bonds_signal(s: dict[str, Series], cpi_yoy: float | None) -> dict:
         sc.add("Real yield", None, "TIPS yield unavailable.")
 
     fed_factor(sc, s, True, "Rate cuts tend to lift bond prices.", "Rate hikes tend to push bond prices down.")
+
+    avg1 = t10.mean_since(365)
+    if t10 and avg1 is not None:
+        diff = t10.last - avg1
+        score = 1 if diff < -0.25 else (-1 if diff > 0.25 else 0)
+        sc.add("Bond trend", score,
+               f"The 10-year yield is {sgn(diff)} pts vs. its 12-month average. "
+               + ("Falling yields mean rising bond prices." if score == 1 else "Rising yields mean falling bond prices." if score == -1 else "Sideways."))
+    else:
+        sc.add("Bond trend", None, "Yield history unavailable.")
 
     if cpi_yoy is not None:
         score = -1 if cpi_yoy > 4 else (1 if cpi_yoy < 2.5 else 0)
@@ -821,7 +846,6 @@ def borrowing_advice(s: dict[str, Series]) -> dict:
 # Allocation
 # --------------------------------------------------------------------------- #
 
-ACTION_TILT = {"Buy": 1, "Overweight": 1, "Hold": 0, "No signal": 0, "Sell": -1, "Underweight": -1}
 
 
 def round_to_100(weights: dict[str, float]) -> dict[str, int]:
@@ -835,15 +859,35 @@ def round_to_100(weights: dict[str, float]) -> dict[str, int]:
     return floor
 
 
-def tilted(weights: dict[str, float], actions: dict[str, str]) -> dict[str, int]:
-    return round_to_100({k: w * (1 + TILT * ACTION_TILT.get(actions.get(k, "Hold"), 0)) for k, w in weights.items()})
+def multiplier(score: int | None) -> float:
+    lo, hi = TILT_RANGE
+    return min(hi, max(lo, 1 + TILT * (score or 0)))
+
+
+DEFENSIVE = ("bonds", "tips", "corp", "cash")
+
+
+def tilted(weights: dict[str, float], scores: dict[str, int | None]) -> dict[str, int]:
+    """Scale each growth slice by its net signal score and let the defensive slices absorb the difference.
+
+    Growth slices (stocks, REITs, commodities...) are set to baseline x multiplier. Defensive slices are
+    tilted by their own scores and then scaled to fill whatever is left, so cutting stocks really does move
+    money into bonds and cash instead of being undone by re-normalizing.
+    """
+    growth = {k: w * multiplier(scores.get(k)) for k, w in weights.items() if k not in DEFENSIVE}
+    defense = {k: w * multiplier(scores.get(k)) for k, w in weights.items() if k in DEFENSIVE}
+    g_total, d_total = sum(growth.values()), sum(defense.values())
+    if g_total > 100 or d_total == 0:
+        return round_to_100({**growth, **defense})
+    room = 100 - g_total
+    return round_to_100({**growth, **{k: v / d_total * room for k, v in defense.items()}})
 
 
 def allocations(signals: dict) -> dict:
-    actions = {k: v["action"] for k, v in signals.items()}
+    scores = {k: (v["score"] if v["action"] != "No signal" else 0) for k, v in signals.items()}
     return {
         name: {"label": p["label"], "blurb": p["blurb"], "baseline": p["weights"],
-               "suggested": tilted(p["weights"], actions)}
+               "suggested": tilted(p["weights"], scores)}
         for name, p in PROFILES.items()
     }
 
@@ -887,72 +931,110 @@ def perf_stats(values: list[float], monthly: list[float]) -> dict:
             "max_drawdown": rnd(max_drawdown(values), 2)}
 
 
-def backtest(series: dict[str, Series]) -> dict:
-    lags = {sid: ser.publication_lag() for sid, ser in series.items()}
-    last = max((ser.dates[-1] for ser in series.values() if ser), default=date.today())
-    months = month_ends(TIMELINE_START, last)
+def sharpe(monthly: list[float], cash: list[float]) -> float | None:
+    if len(monthly) < 12:
+        return None
+    ex = [r - c for r, c in zip(monthly, cash)]
+    mean = sum(ex) / len(ex)
+    sd = math.sqrt(sum((x - mean) ** 2 for x in ex) / (len(ex) - 1))
+    return None if sd == 0 else mean / sd * math.sqrt(12)
 
-    timeline = []
-    for d in months:
-        sigs = compute_signals(as_of(series, d, lags))
-        timeline.append({"date": d.isoformat(), **{k: {"a": v["action"], "s": v["score"]} for k, v in sigs.items()}})
 
-    # Portfolio simulation: US stocks / Treasuries / cash, rebalanced monthly.
-    sp, t10, t3m = series["SP500"], series["DGS10"], series["DGS3MO"]
+BACKTESTS = {
+    # key: (stock index series, dividend yield %, first month, label)
+    "recent": ("SP500", SP500_DIVIDEND_YIELD, date(2016, 11, 1), "S&P 500, last ~10 years"),
+    "long": ("NASDAQCOM", 1.0, date(1990, 12, 1), "Nasdaq Composite since 1991"),
+}
+
+
+def run_backtest(series: dict[str, Series], lags: dict[str, int], stock_sid: str, div_yield: float,
+                 first: date, last: date) -> dict | None:
+    """Monthly-rebalanced stocks / 10-year Treasuries / cash, with the stock signal computed from `stock_sid`."""
+    sim = dict(series)
+    sim["SP500"] = series[stock_sid]
+    months = month_ends(first, last)
+    stock, t10, t3m = series[stock_sid], series["DGS10"], series["DGS3MO"]
     rows = []
     for i in range(1, len(months)):
         d0, d1 = months[i - 1], months[i]
-        p0, p1 = sp.value_on_or_before(d0), sp.value_on_or_before(d1)
+        seen = as_of(sim, d0, lags)
+        cpi_yoy = seen["CPIAUCSL"].pct_change(365)
+        sig = {k: SIGNAL_FUNCS[k](seen, cpi_yoy) for k in ("stocks", "bonds", "cash")}
+        p0, p1 = stock.value_on_or_before(d0), stock.value_on_or_before(d1)
         y0, y1 = t10.value_on_or_before(d0), t10.value_on_or_before(d1)
         c0 = t3m.value_on_or_before(d0)
-        # Need a full stocks signal (200-day MA and 1-year history) at the start of the month.
-        if None in (p0, p1, y0, y1, c0) or timeline[i - 1]["stocks"]["a"] == "No signal":
+        if None in (p0, p1, y0, y1, c0) or sig["stocks"]["action"] == "No signal":
             continue
-        r_stock = p1 / p0 - 1 + SP500_DIVIDEND_YIELD / 100 / 12
-        r_bond = y0 / 100 / 12 - BOND_DURATION * (y1 - y0) / 100
-        r_cash = c0 / 100 / 12
-        rows.append((d1, timeline[i - 1], {"stocks": r_stock, "bonds": r_bond, "cash": r_cash}))
+        r = {"stocks": p1 / p0 - 1 + div_yield / 100 / 12,
+             "bonds": y0 / 100 / 12 - BOND_DURATION * (y1 - y0) / 100,
+             "cash": c0 / 100 / 12}
+        rows.append((d1, {k: v["score"] for k, v in sig.items()}, r))
+    if not rows:
+        return None
 
-    results = {}
-    if rows:
-        start = rows[0][0]
-        for name, p in PROFILES.items():
-            core = p["core"]
-            curves = {"strategy": [10000.0], "static": [10000.0], "sp500": [10000.0]}
-            rets = {k: [] for k in curves}
-            for _, sig, r in rows:
-                acts = {k: sig[k]["a"] for k in core}
-                w_tilt = tilted(core, acts)
-                for key, w in (("strategy", w_tilt), ("static", core), ("sp500", {"stocks": 100, "bonds": 0, "cash": 0})):
-                    ret = sum(w[k] / 100 * r[k] for k in r)
-                    rets[key].append(ret)
-                    curves[key].append(curves[key][-1] * (1 + ret))
-            results[name] = {
-                "core": core,
-                "stats": {k: perf_stats(curves[k], rets[k]) for k in curves},
-                "curve": [[(start - timedelta(days=31)).isoformat()[:7] if j == 0 else rows[j - 1][0].isoformat()[:7],
-                           round(curves["strategy"][j]), round(curves["static"][j]), round(curves["sp500"][j])]
-                          for j in range(len(rows) + 1)],
-            }
+    out = {"stock_index": SERIES[stock_sid], "start": rows[0][0].isoformat(), "end": rows[-1][0].isoformat(),
+           "months": len(rows), "profiles": {}}
+    cash = [r["cash"] for _, _, r in rows]
+    for name, p in PROFILES.items():
+        core = p["core"]
+        curves = {"strategy": [10000.0], "static": [10000.0], "sp500": [10000.0]}
+        rets = {k: [] for k in curves}
+        stock_w = []
+        for _, scores, r in rows:
+            w_tilt = tilted(core, scores)
+            stock_w.append(w_tilt["stocks"])
+            for key, w in (("strategy", w_tilt), ("static", core), ("sp500", {"stocks": 100, "bonds": 0, "cash": 0})):
+                ret = sum(w[k] / 100 * r[k] for k in r)
+                rets[key].append(ret)
+                curves[key].append(curves[key][-1] * (1 + ret))
+        stats = {k: perf_stats(curves[k], rets[k]) for k in curves}
+        for k in stats:
+            stats[k]["sharpe"] = rnd(sharpe(rets[k], cash), 2)
+        out["profiles"][name] = {
+            "core": core,
+            "stats": stats,
+            "stock_weight": {"min": min(stock_w), "max": max(stock_w), "avg": round(sum(stock_w) / len(stock_w))},
+            "curve": [[(rows[0][0] - timedelta(days=31)).isoformat()[:7] if j == 0 else rows[j - 1][0].isoformat()[:7],
+                       round(curves["strategy"][j]), round(curves["static"][j]), round(curves["sp500"][j]),
+                       None if j == 0 else stock_w[j - 1]]
+                      for j in range(len(rows) + 1)],
+        }
+    return out
+
+
+def backtest(series: dict[str, Series]) -> dict:
+    lags = {sid: ser.publication_lag() for sid, ser in series.items()}
+    last = max((ser.dates[-1] for ser in series.values() if ser), default=date.today())
+
+    timeline = []
+    for d in month_ends(TIMELINE_START, last):
+        sigs = compute_signals(as_of(series, d, lags))
+        timeline.append({"date": d.isoformat(), **{k: {"a": v["action"], "s": v["score"]} for k, v in sigs.items()}})
+
+    periods = {}
+    for key, (sid, dy, first, label) in BACKTESTS.items():
+        res = run_backtest(series, lags, sid, dy, first, last)
+        if res:
+            res["label"] = label
+            periods[key] = res
 
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "timeline": timeline,
         "backtest": {
-            "start": rows[0][0].isoformat() if rows else None,
-            "end": rows[-1][0].isoformat() if rows else None,
-            "months": len(rows),
+            "periods": periods,
             "assumptions": {
-                "dividend_yield": SP500_DIVIDEND_YIELD, "bond_duration": BOND_DURATION,
+                "bond_duration": BOND_DURATION, "tilt_per_point": TILT, "tilt_range": TILT_RANGE,
                 "notes": [
                     "Rebalanced monthly using only data that would have been published by each month-end.",
-                    "Stocks: S&P 500 price change plus an assumed dividend yield. FRED only carries 10 years of S&P 500 data.",
+                    "The rules use textbook settings (200-day trend, 12-month momentum) and were not fitted to this data. "
+                    "The Nasdaq period is an out-of-sample check: a different index and 25 more years, including the 2000-02 and 2008 crashes.",
+                    f"Stocks: index price change plus an assumed dividend yield ({SP500_DIVIDEND_YIELD}% S&P 500, 1.0% Nasdaq).",
                     "Bonds: a 10-year Treasury approximation (yield income minus duration times the yield change).",
                     "Cash: the 3-month T-bill yield.",
                     "No taxes, fees or trading costs. Uses today's revised data, not the figures first reported.",
                 ],
             },
-            "profiles": results,
         },
     }
 
@@ -993,6 +1075,7 @@ def build(series: dict[str, Series], failures: list[str]) -> dict:
         "signals": signals,
         "profiles": allocations(signals),
         "tilt": TILT,
+        "tilt_range": TILT_RANGE,
         "borrowing": borrowing_advice(series),
         "rates": [m(sid) for sid in ("DFF", "DGS3MO", "DGS2", "DGS10", "DGS30", "DFII10", "T10YIE",
                                      "T10Y3M", "BAMLC0A0CM", "BAMLH0A0HYM2")],
@@ -1060,7 +1143,7 @@ def main() -> int:
     latest = build(series, failures)
     t0 = time.time()
     bt = backtest(series)
-    print(f"Backtest: {bt['backtest']['months']} months ({bt['backtest']['start']} to {bt['backtest']['end']}) in {time.time() - t0:.1f}s")
+    print(f"Backtests computed in {time.time() - t0:.1f}s")
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "latest.json").write_text(json.dumps(latest, indent=1) + "\n")
@@ -1070,8 +1153,11 @@ def main() -> int:
         print(f"{k:12} -> {v['action']} (score {v['score']})")
     for name, p in latest["profiles"].items():
         print(f"{name:12} {p['suggested']}")
-    for name, r in bt["backtest"]["profiles"].items():
-        print(f"backtest {name:12} " + "  ".join(f"{k}: {v['cagr']}%/yr dd {v['max_drawdown']}%" for k, v in r["stats"].items()))
+    for period, res in bt["backtest"]["periods"].items():
+        print(f"Backtest {period}: {res['label']}, {res['months']} months ({res['start']} to {res['end']})")
+        for name, r in res["profiles"].items():
+            print(f"  {name:12} stocks {r['stock_weight']['min']}-{r['stock_weight']['max']}%  "
+                  + "  ".join(f"{k}: {v['cagr']}%/yr dd {v['max_drawdown']}% sharpe {v['sharpe']}" for k, v in r["stats"].items()))
     return 0
 
 

@@ -345,57 +345,98 @@
   }
 
   // ------------------------------------------------------------------ backtest chart
-  const BT_SERIES = [
-    { key: 1, name: "Signal-tilted", color: "var(--series-1)" },
-    { key: 2, name: "Static mix", color: "var(--series-2)" },
-    { key: 3, name: "100% S&P 500", color: "var(--series-3)" },
-  ];
+  state.period = store.get("period") || "long";
+
+  function btSeries(res) {
+    const idx = res.stock_index === "S&P 500" ? "S&P 500" : res.stock_index.replace(" Composite", "");
+    return [
+      { key: 1, name: "Signal-tilted", color: "var(--series-1)" },
+      { key: 2, name: "Static mix", color: "var(--series-2)" },
+      { key: 3, name: `100% ${idx}`, color: "var(--series-3)" },
+    ];
+  }
 
   function renderBacktest() {
     const bt = BACKTEST && BACKTEST.backtest;
-    const res = bt && bt.profiles && bt.profiles[state.profile];
+    const periods = (bt && bt.periods) || {};
+    if (!periods[state.period]) state.period = Object.keys(periods)[0];
+    const per = periods[state.period];
+    const res = per && per.profiles[state.profile];
     if (!res) {
       $("bt-intro").textContent = "Backtest data isn't available yet.";
-      $("bt-chart").innerHTML = ""; $("bt-stats").innerHTML = "";
+      $("bt-chart").innerHTML = ""; $("bt-stats").innerHTML = ""; $("bt-weight").innerHTML = "";
       return;
     }
+    $("bt-periods").innerHTML = Object.entries(periods)
+      .map(([k, p]) => `<button type="button" role="radio" data-period="${k}" aria-checked="${k === state.period}">${esc(p.label)}</button>`).join("");
     const c = res.core;
-    $("bt-intro").textContent = `Growth of $10,000 from ${fmtDate(bt.start.slice(0, 7))} to ${fmtDate(bt.end.slice(0, 7))}. ` +
-      `The ${LATEST.profiles[state.profile].label.toLowerCase()} core mix is ${c.stocks}% US stocks, ${c.bonds}% Treasuries and ${c.cash}% cash. ` +
-      `"Signal-tilted" adjusts that mix each month using the stocks, bonds and cash signals; "Static mix" never changes. The backtest uses the three core categories because they have long enough price history.`;
-    $("bt-legend").innerHTML = BT_SERIES.map((s) => `<span><i class="sw" style="--c:${s.color}"></i>${s.name}</span>`).join("");
-    lineChart($("bt-chart"), res.curve);
+    const series = btSeries(per);
+    const longRun = per.months > 240;
+    $("bt-intro").textContent = `Growth of $10,000 from ${fmtDate(per.start.slice(0, 7))} to ${fmtDate(per.end.slice(0, 7))}` +
+      (longRun ? " (log scale, so equal percentage moves look the same size)" : "") + `. ` +
+      `The ${LATEST.profiles[state.profile].label.toLowerCase()} core mix is ${c.stocks}% stocks (${per.stock_index}), ${c.bonds}% Treasuries and ${c.cash}% cash. ` +
+      `"Signal-tilted" re-weights that mix every month from the stocks, bonds and cash scores; "Static mix" never changes.`;
+    $("bt-legend").innerHTML = series.map((s) => `<span><i class="sw" style="--c:${s.color}"></i>${s.name}</span>`).join("");
+    lineChart($("bt-chart"), res.curve, { series, log: longRun, fmt: fmtCompactMoney, tipFmt: fmtMoney, height: 300 });
+    lineChart($("bt-weight"), res.curve.slice(1), {
+      series: [{ key: 4, name: "Stock allocation", color: "var(--series-1)" }],
+      lo: 0, hi: 100, step: 25, fmt: (v) => v + "%", tipFmt: (v) => v + "%", height: 140,
+    });
+    $("bt-weight-note").textContent = `Stock allocation in the signal-tilted mix: ${res.stock_weight.min}% to ${res.stock_weight.max}%, ${res.stock_weight.avg}% on average (static mix: ${c.stocks}%).`;
 
     const st = res.stats;
-    const rows = [["strategy", "Signal-tilted"], ["static", "Static mix"], ["sp500", "100% S&P 500"]];
-    $("bt-stats").innerHTML = `<thead><tr><th>Portfolio</th><th class="num">Ending value</th><th class="num">Return / yr</th><th class="num">Volatility</th><th class="num">Worst drop</th></tr></thead><tbody>${rows
-      .map(([k, n]) => `<tr><td>${n}</td><td class="num">${fmtMoney(st[k].final)}</td><td class="num">${fmtPct(st[k].cagr)}</td><td class="num">${fmtPct(st[k].volatility, 1)}</td><td class="num">${signed(st[k].max_drawdown, 1, "%")}</td></tr>`)
+    const rows = [["strategy", series[0].name], ["static", series[1].name], ["sp500", series[2].name]];
+    $("bt-stats").innerHTML = `<thead><tr><th>Portfolio</th><th class="num">Ending value</th><th class="num">Return / yr</th><th class="num">Volatility</th><th class="num">Worst drop</th><th class="num">Sharpe</th></tr></thead><tbody>${rows
+      .map(([k, n]) => `<tr><td>${esc(n)}</td><td class="num">${fmtMoney(st[k].final)}</td><td class="num">${fmtPct(st[k].cagr)}</td><td class="num">${fmtPct(st[k].volatility, 1)}</td><td class="num">${signed(st[k].max_drawdown, 1, "%")}</td><td class="num">${fmtNum(st[k].sharpe)}</td></tr>`)
       .join("")}</tbody>`;
-    $("bt-notes").innerHTML = bt.assumptions.notes.map((n) => `<li>${esc(n)}</li>`).join("");
+    $("bt-notes").innerHTML = bt.assumptions.notes.map((n) => `<li>${esc(n)}</li>`).join("") +
+      `<li>Sharpe ratio: return above cash per unit of volatility. Higher is better; it rewards getting similar returns with smaller swings.</li>`;
   }
 
-  function lineChart(el, rows) {
-    const W = 800, H = 300, m = { l: 56, r: 12, t: 10, b: 26 };
-    const n = rows.length;
-    const vals = rows.flatMap((r) => [r[1], r[2], r[3]]);
-    let lo = Math.min(...vals), hi = Math.max(...vals);
-    const step = niceStep((hi - lo) / 5);
-    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
-    const x = (i) => m.l + (i / (n - 1)) * (W - m.l - m.r);
-    const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
+  function setupPeriodPicker() {
+    $("bt-periods").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-period]");
+      if (!b) return;
+      state.period = b.dataset.period;
+      store.set("period", state.period);
+      renderBacktest();
+    });
+  }
 
-    let grid = "";
-    for (let v = lo; v <= hi + 1e-9; v += step) {
-      grid += `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmtCompactMoney(v)}</text>`;
+  function lineChart(el, rows, opt) {
+    const W = 800, H = opt.height || 300, m = { l: 56, r: 12, t: 10, b: 26 };
+    const series = opt.series;
+    rows = rows.filter((r) => series.every((s) => isNum(r[s.key])));
+    const n = rows.length;
+    if (n < 2) { el.innerHTML = ""; return; }
+    const vals = rows.flatMap((r) => series.map((s) => r[s.key]));
+    const tf = opt.log ? Math.log10 : (v) => v;
+    let lo, hi, ticks = [];
+    if (opt.log) {
+      lo = Math.min(...vals); hi = Math.max(...vals);
+      for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++)
+        for (const mlt of [1, 2, 5]) { const v = mlt * 10 ** e; if (v >= lo * 0.9 && v <= hi * 1.1) ticks.push(v); }
+      lo = Math.min(lo, ticks[0] || lo); hi = Math.max(hi, ticks[ticks.length - 1] || hi);
+    } else {
+      lo = opt.lo ?? Math.min(...vals); hi = opt.hi ?? Math.max(...vals);
+      const step = opt.step || niceStep((hi - lo) / 5);
+      lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+      for (let v = lo; v <= hi + 1e-9; v += step) ticks.push(v);
     }
+    const x = (i) => m.l + (i / (n - 1)) * (W - m.l - m.r);
+    const y = (v) => m.t + (1 - (tf(v) - tf(lo)) / (tf(hi) - tf(lo))) * (H - m.t - m.b);
+
+    let grid = ticks.map((v) => `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${opt.fmt(v)}</text>`).join("");
+    const every = n > 300 ? 5 : n > 90 ? 2 : 1;
     let xl = "";
     rows.forEach((r, i) => {
-      if (r[0].endsWith("-01") && Number(r[0].slice(0, 4)) % (n > 90 ? 2 : 1) === 0) xl += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${r[0].slice(0, 4)}</text>`;
+      if (r[0].endsWith("-01") && Number(r[0].slice(0, 4)) % every === 0) xl += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${r[0].slice(0, 4)}</text>`;
     });
-    const paths = BT_SERIES.map((s) => `<path class="line" style="stroke:${s.color}" d="${rows.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[s.key]).toFixed(1)}`).join("")}"/>`).join("");
+    const paths = series.map((s) => `<path class="line" style="stroke:${s.color}" d="${rows.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[s.key]).toFixed(1)}`).join("")}"/>`).join("");
     const last = rows[n - 1];
-    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Backtest growth of $10,000: signal-tilted ${fmtMoney(last[1])}, static ${fmtMoney(last[2])}, S&P 500 ${fmtMoney(last[3])}">
-      ${grid}${xl}${paths}<g class="hover" visibility="hidden"><line class="crosshair" y1="${m.t}" y2="${H - m.b}"/>${BT_SERIES.map((s) => `<circle class="dot" r="4.5" style="fill:${s.color}"/>`).join("")}</g>
+    const label = series.map((s) => `${s.name} ${opt.tipFmt(last[s.key])}`).join(", ");
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+      ${grid}${xl}${paths}<g class="hover" visibility="hidden"><line class="crosshair" y1="${m.t}" y2="${H - m.b}"/>${series.map((s) => `<circle class="dot" r="4.5" style="fill:${s.color}"/>`).join("")}</g>
       <rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg>`;
     const svg = el.querySelector("svg"), g = svg.querySelector(".hover");
     const move = (ev) => {
@@ -406,8 +447,8 @@
       const r = rows[i];
       g.setAttribute("visibility", "visible");
       g.querySelector("line").setAttribute("x1", x(i)); g.querySelector("line").setAttribute("x2", x(i));
-      g.querySelectorAll("circle").forEach((c, k) => { c.setAttribute("cx", x(i)); c.setAttribute("cy", y(r[k + 1])); });
-      showTip(`<div><b>${fmtDate(r[0])}</b></div>` + BT_SERIES.map((s) => `<div class="row"><i class="sw" style="--c:${s.color}"></i>${s.name}: <b>${fmtMoney(r[s.key])}</b></div>`).join(""), pt.clientX, pt.clientY);
+      g.querySelectorAll("circle").forEach((c, k) => { c.setAttribute("cx", x(i)); c.setAttribute("cy", y(r[series[k].key])); });
+      showTip(`<div><b>${fmtDate(r[0])}</b></div>` + series.map((s) => `<div class="row"><i class="sw" style="--c:${s.color}"></i>${esc(s.name)}: <b>${opt.tipFmt(r[s.key])}</b></div>`).join(""), pt.clientX, pt.clientY);
     };
     const leave = () => { g.setAttribute("visibility", "hidden"); hideTip(); };
     svg.addEventListener("pointermove", move);
@@ -506,8 +547,11 @@
       if (latest.missing_series && latest.missing_series.length) meta += ` Some series could not be fetched today: ${esc(latest.missing_series.join(", "))}.`;
       $("updated").innerHTML = meta;
       document.querySelectorAll(".tilt").forEach((el) => (el.textContent = Math.round(latest.tilt * 100)));
+      document.querySelectorAll(".tilt-lo").forEach((el) => (el.textContent = Math.round((latest.tilt_range || [0.25])[0] * 100)));
+      document.querySelectorAll(".tilt-hi").forEach((el) => (el.textContent = Math.round((latest.tilt_range || [0, 1.75])[1] * 100)));
 
       renderSignals(latest);
+      setupPeriodPicker();
       renderProfilePicker();
       renderProfileDependent();
       renderLoans(latest.borrowing, latest.loan_rates);

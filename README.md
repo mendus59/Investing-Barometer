@@ -29,9 +29,9 @@ Each category is scored on 3–5 factors worth +1, 0 or −1. A total of +2 or m
 
 | Category | Factors |
 | --- | --- |
-| US stocks | S&P 500 vs. 200-day average, 1-year return vs. history, VIX, yield-curve inversion, 3-month change in high-yield spreads |
+| US stocks | Trend: S&P 500 above/below its 200-day average. 12-month momentum vs. T-bills. Volatility: VIX above 30 cuts risk. Recession risk: rising unemployment, or an inverted curve confirmed by a broken trend. 3-month change in high-yield spreads |
 | International stocks | Dollar 6-month trend, Nikkei 225 vs. 200-day average, 1-year Nikkei vs. S&P 500 |
-| Treasury bonds | 10-year yield vs. 5-year average, 10-year TIPS real yield, Fed funds direction, CPI inflation |
+| Treasury bonds | 10-year yield vs. 5-year average, 10-year TIPS real yield, Fed funds direction, bond trend (yield vs. 12-month average), CPI inflation |
 | TIPS | Real yield level, breakeven vs. actual inflation, breakeven level |
 | Corporate bonds | Investment-grade spread, Treasury yield vs. 5-year average, recession risk (unemployment rise, inverted curve) |
 | High-yield bonds | High-yield spread level, 3-month spread change, recession risk |
@@ -45,11 +45,14 @@ Each category is scored on 3–5 factors worth +1, 0 or −1. A total of +2 or m
 | Nearby Buy search | When a ZIP scores Sell (or on request), scores every ZIP within 50, then 150, then 400 miles and lists the nearest Buys with the cash a sell-here, buy-there move would free up after ~8% costs |
 | Borrowing | Each loan rate vs. a ~10% long-run stock return, plus a refinance check against your own mortgage rate |
 
-Risk profiles start from fixed baseline weights (see `PROFILES` in `scripts/update.py`). Each Buy raises a slice by
-30% and each Sell cuts it by 30%, then weights are scaled back to 100%.
+Risk profiles start from fixed baseline weights (see `PROFILES` in `scripts/update.py`). Each net factor point in a
+category's score moves its slice by 15% (clamped to 25%–175% of baseline). Bonds, TIPS, corporate bonds and cash then
+absorb whatever the growth slices give up, so a risk-off signal really moves money out of stocks.
 
-The backtest rebalances a stocks/Treasuries/cash core mix monthly using only data published by each month-end. It
-covers about 10 years because FRED only carries 10 years of S&P 500 history. No taxes or fees.
+The backtest rebalances a stocks/Treasuries/cash core mix monthly using only data published by each month-end, over
+two periods: the S&P 500 for the ~10 years FRED carries, and the Nasdaq Composite since 1991 as an out-of-sample
+check. The stock rules use textbook settings (200-day trend, 12-month time-series momentum, volatility management)
+rather than parameters fitted to this data. No taxes or fees.
 
 ## Setup (one time)
 
