@@ -134,7 +134,8 @@ def census_income(path: str | None) -> tuple[int | None, dict[str, int]]:
 
 def parse_gazetteer(text: str) -> dict[str, tuple[float, float]]:
     lines = text.splitlines()
-    header = [h.strip().lstrip("\ufeff").upper() for h in lines[0].split("\t")]
+    sep = "|" if lines[0].count("|") > lines[0].count("\t") else "\t"  # 2025+ files are pipe-delimited
+    header = [h.strip().lstrip("\ufeff").upper() for h in lines[0].split(sep)]
 
     def col(*prefixes):
         for i, h in enumerate(header):
@@ -145,7 +146,7 @@ def parse_gazetteer(text: str) -> dict[str, tuple[float, float]]:
     gi, la, lo = col("GEOID", "ZCTA"), col("INTPTLAT"), col("INTPTLONG", "INTPTLON")
     out = {}
     for line in lines[1:]:
-        parts = [p.strip() for p in line.split("\t")]
+        parts = [p.strip() for p in line.split(sep)]
         try:
             out[parts[gi].zfill(5)] = (float(parts[la]), float(parts[lo]))
         except (IndexError, ValueError):
