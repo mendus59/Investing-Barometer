@@ -105,9 +105,14 @@ def census_income(path: str | None) -> tuple[int | None, dict[str, int]]:
             params["key"] = key
         url = CENSUS_URL.format(year=year) + "?" + urllib.parse.urlencode(params)
         try:
-            rows = json.loads(get(url, retries=2))
+            raw = get(url, retries=2)
+            rows = json.loads(raw)
+        except json.JSONDecodeError:
+            snippet = raw[:200].decode("utf-8", "replace").replace("\n", " ")
+            print(f"  ACS {year}: unexpected response ({len(raw)} bytes): {snippet}")
+            continue
         except Exception as err:  # noqa: BLE001 - year not published yet, try older
-            print(f"  ACS {year}: unavailable ({str(err)[:80]})")
+            print(f"  ACS {year}: unavailable ({str(err)[:120]})")
             continue
         income = {}
         for r in rows[1:]:
