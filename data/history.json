@@ -1,0 +1,26 @@
+[
+ {
+  "date": "2026-11-22",
+  "stocks": {
+   "action": "Hold",
+   "score": -1
+  },
+  "bonds": {
+   "action": "Hold",
+   "score": 0
+  },
+  "cash": {
+   "action": "Hold",
+   "score": 1
+  },
+  "housing": {
+   "action": "Hold",
+   "score": 0
+  },
+  "allocation": {
+   "stocks": 60,
+   "bonds": 30,
+   "cash": 10
+  }
+ }
+]
