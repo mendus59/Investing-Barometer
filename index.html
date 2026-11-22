@@ -4,39 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Investing Barometer</title>
-  <meta name="description" content="A daily, rules-based read on stocks, bonds, cash and housing using public Federal Reserve data. Educational only, not financial advice.">
+  <meta name="description" content="A daily, rules-based read on stocks, bonds, cash, housing and more using public Federal Reserve data. Educational only, not financial advice.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
   <header class="wrap">
     <h1>Investing Barometer</h1>
-    <p class="lede">A daily, rules-based read on the market using public Federal Reserve data.</p>
+    <p class="lede">A daily, rules-based read on the markets using public Federal Reserve data.</p>
     <p class="meta" id="updated">Loading data…</p>
   </header>
 
   <div class="wrap">
     <aside class="disclaimer" role="note">
       <strong>Not financial advice.</strong> This page is an automated, educational summary built from a handful of
-      simple rules. It does not know your goals, timeline, taxes or risk tolerance, and past patterns do not guarantee
-      future results. Talk to a licensed financial professional before making investment decisions.
+      simple rules. It does not know your goals, timeline, taxes or risk tolerance, and past patterns, including the
+      backtest below, do not guarantee future results. Talk to a licensed financial professional before making
+      investment decisions.
     </aside>
   </div>
 
   <main class="wrap" id="app" hidden>
+    <nav class="toc" aria-label="Sections">
+      <a href="#signals-h">Signals</a><a href="#alloc-h">Allocation</a><a href="#housing-h">Housing &amp; ZIP</a>
+      <a href="#borrow-h">Borrowing</a><a href="#backtest-h">Backtest</a><a href="#history-h">History</a>
+      <a href="#data-h">Data</a><a href="#how-h">How it works</a>
+    </nav>
+
+    <section class="profile-picker" aria-labelledby="profile-h">
+      <h2 id="profile-h">Your risk profile</h2>
+      <div class="segmented" role="radiogroup" aria-labelledby="profile-h" id="profiles"></div>
+      <p class="hint" id="profile-blurb"></p>
+    </section>
+
     <section>
-      <h2>Today's signals</h2>
+      <h2 id="signals-h">Today's signals</h2>
       <div class="cards" id="signals"></div>
     </section>
 
     <section>
-      <h2>Illustrative allocation</h2>
-      <p class="hint">Starts from a moderate 60% stocks / 30% bonds / 10% cash mix and tilts it by today's signals.</p>
-      <div id="allocation"></div>
+      <h2 id="alloc-h">Suggested allocation</h2>
+      <p class="hint">Starts from the <span class="profile-name"></span> baseline. Each Buy raises a slice by <span class="tilt"></span>% and each Sell cuts it by the same, then everything is scaled back to 100%.</p>
+      <div class="table-wrap"><table id="allocation"></table></div>
     </section>
 
     <section>
-      <h2>Borrowing</h2>
+      <h2 id="housing-h">Housing</h2>
+      <div class="zip-box">
+        <form id="zip-form" class="zip-form" autocomplete="off">
+          <label for="zip">Check a ZIP code</label>
+          <div class="zip-row">
+            <input id="zip" name="zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" placeholder="e.g. 98101" required>
+            <button type="submit">Look up</button>
+          </div>
+        </form>
+        <div id="zip-out" aria-live="polite"></div>
+      </div>
+      <h3 class="sub">National</h3>
+      <div class="table-wrap"><table id="housing"></table></div>
+    </section>
+
+    <section>
+      <h2 id="borrow-h">Borrowing</h2>
       <p class="hint">Compared with a long-run stock return of about <span id="expected"></span>% a year.</p>
       <div class="table-wrap"><table id="loans"></table></div>
       <div class="refi">
@@ -47,33 +76,41 @@
     </section>
 
     <section>
-      <h2>Stock market</h2>
+      <h2 id="backtest-h">Backtest</h2>
+      <p class="hint" id="bt-intro"></p>
+      <div class="chart-card">
+        <div class="legend" id="bt-legend"></div>
+        <div class="chart" id="bt-chart"></div>
+      </div>
+      <div class="table-wrap"><table id="bt-stats"></table></div>
+      <details class="assumptions"><summary>Backtest assumptions</summary><ul id="bt-notes"></ul></details>
+    </section>
+
+    <section>
+      <h2 id="history-h">Signal history</h2>
+      <p class="hint">Month-end signals since 2010, recomputed using only data published by each date. Hover or tap a cell for details. "No signal" means the data didn't exist yet (FRED keeps only 10 years of S&amp;P 500 and 3 years of credit spreads).</p>
+      <div class="chart-card">
+        <div class="legend" id="tl-legend"></div>
+        <div class="chart" id="timeline"></div>
+      </div>
+      <h3 class="sub">Daily log (last 30 updates)</h3>
+      <div class="table-wrap"><table id="history"></table></div>
+    </section>
+
+    <section>
+      <h2 id="data-h">Markets</h2>
       <p class="hint">Price returns from FRED (dividends excluded). Long-run S&amp;P 500 average: about <span id="lr-nom"></span>% a year with dividends, <span id="lr-real"></span>% after inflation.</p>
       <div class="table-wrap"><table id="markets"></table></div>
-    </section>
 
-    <section>
       <h2>Interest rates &amp; bonds</h2>
       <div class="table-wrap"><table id="rates"></table></div>
-    </section>
 
-    <section>
-      <h2>Housing</h2>
-      <div class="table-wrap"><table id="housing"></table></div>
-    </section>
-
-    <section>
       <h2>Economy</h2>
       <div class="stats" id="economy"></div>
     </section>
 
     <section>
-      <h2>Signal history</h2>
-      <div class="table-wrap"><table id="history"></table></div>
-    </section>
-
-    <section>
-      <h2>How it works</h2>
+      <h2 id="how-h">How it works</h2>
       <div class="method">
         <p>Every day a GitHub Actions job downloads the latest values from
           <a href="https://fred.stlouisfed.org/">FRED</a>, the St. Louis Fed's free economic database. Each category is
@@ -81,11 +118,12 @@
         <ul>
           <li>A total of <strong>+2 or more</strong> is <em>Buy</em> (or <em>Overweight</em> for cash).</li>
           <li>A total of <strong>−2 or less</strong> is <em>Sell</em> (or <em>Underweight</em>).</li>
-          <li>Anything in between is <em>Hold</em>.</li>
+          <li>Anything in between is <em>Hold</em>. With fewer than two factors available, there's <em>No signal</em>.</li>
         </ul>
-        <p>For housing, the view is that of someone buying a home to live in. <em>Buy</em> means conditions favor buyers;
-          <em>Sell</em> means a seller's market. Some series (home prices, income, consumer loan rates) are published
-          monthly, quarterly or yearly, so their "as of" dates lag.</p>
+        <p>Signals are about broad index funds for each asset class, never individual stocks or bonds. For housing, the
+          view is that of someone buying a home to live in: <em>Buy</em> means conditions favor buyers and <em>Sell</em>
+          means a seller's market. ZIP code data comes from Zillow (home values and rents, monthly) and the Census
+          Bureau (median household income), and is refreshed weekly.</p>
         <p>The rules are intentionally simple and transparent. You can read them all in
           <a href="https://github.com/mendus59/Investing-Barometer/blob/main/scripts/update.py">scripts/update.py</a>.</p>
       </div>
@@ -93,10 +131,13 @@
   </main>
 
   <footer class="wrap">
-    <p>Data: Federal Reserve Bank of St. Louis (FRED), with series from Freddie Mac, the Federal Reserve Board, U.S. Treasury,
-      S&amp;P Dow Jones Indices, Cboe, ICE BofA, U.S. Census Bureau and BLS. Educational use only. Not financial advice.</p>
+    <p>Data: Federal Reserve Bank of St. Louis (FRED), with series from Freddie Mac, the Federal Reserve Board, U.S.
+      Treasury, S&amp;P Dow Jones Indices, Nikkei, Cboe, ICE BofA, Coinbase, U.S. Census Bureau, BLS and EIA. ZIP code
+      home values and rents: Zillow Home Value Index and Zillow Observed Rent Index. Educational use only. Not
+      financial advice.</p>
   </footer>
 
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
   <script src="assets/app.js"></script>
 </body>
 </html>
