@@ -195,7 +195,8 @@ def main() -> int:
     if meta_path.exists() and not args.force:
         prev = json.loads(meta_path.read_text())
         age = datetime.now(timezone.utc) - datetime.fromisoformat(prev["generated_at"].replace("Z", "+00:00"))
-        if age < timedelta(days=7):
+        missing_income = prev.get("income_year") is None and os.environ.get("CENSUS_API_KEY")
+        if age < timedelta(days=7) and not missing_income:
             print(f"ZIP data is {age.days} days old; skipping (use --force to rebuild).")
             return 0
 
