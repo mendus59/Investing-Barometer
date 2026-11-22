@@ -17,7 +17,7 @@ housing data once a day and turns them into a simple **Buy / Hold / Sell** read 
 2. `scripts/update.py` downloads about 30 series from [FRED](https://fred.stlouisfed.org/) (St. Louis Fed),
    scores each category, and writes `data/latest.json`, `data/history.json` and `data/backtest.json`.
 3. `scripts/update_zip.py` (weekly) builds `data/zip/*.json` from Zillow's ZIP-level home value and rent indexes and
-   Census median household income.
+   Census median household income, plus Census Gazetteer ZIP centroids for the nearby search (`data/zip/near.json`).
 4. The workflow commits the new data and deploys the site to GitHub Pages. Pull requests run `check.yml`, which runs
    the tests and a dry run against live data.
 5. `index.html` + `assets/app.js` render the JSON in the browser. No build step and no dependencies.
@@ -42,6 +42,7 @@ Each category is scored on 3–5 factors worth +1, 0 or −1. A total of +2 or m
 | Bitcoin (speculative) | Trend vs. 200-day average, 1-year momentum, Fed funds direction |
 | Housing (buyer's view) | Payment-to-income on the median home, mortgage rate vs. 10-year average, Case-Shiller YoY, months' supply |
 | ZIP code housing | Local payment-to-income, price-to-rent, local 1-year price change, mortgage rate vs. 10-year average |
+| Nearby Buy search | When a ZIP scores Sell (or on request), scores every ZIP within 50, then 150, then 400 miles and lists the nearest Buys with the cash a sell-here, buy-there move would free up after ~8% costs |
 | Borrowing | Each loan rate vs. a ~10% long-run stock return, plus a refinance check against your own mortgage rate |
 
 Risk profiles start from fixed baseline weights (see `PROFILES` in `scripts/update.py`). Each Buy raises a slice by
