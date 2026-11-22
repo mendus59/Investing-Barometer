@@ -3,7 +3,7 @@
   "date": "2026-11-22",
   "stocks": {
    "action": "Hold",
-   "score": -1
+   "score": 0
   },
   "intl": {
    "action": "Hold",
@@ -11,7 +11,7 @@
   },
   "bonds": {
    "action": "Hold",
-   "score": 0
+   "score": -1
   },
   "tips": {
    "action": "Buy",
@@ -51,43 +51,43 @@
   },
   "allocation": {
    "conservative": {
-    "stocks": 19,
+    "stocks": 20,
     "intl": 8,
-    "bonds": 29,
-    "tips": 13,
-    "corp": 10,
     "hy": 0,
     "reits": 2,
     "commodities": 0,
     "gold": 3,
-    "cash": 16,
-    "bitcoin": 0
+    "bitcoin": 0,
+    "bonds": 25,
+    "tips": 13,
+    "corp": 10,
+    "cash": 19
    },
    "moderate": {
-    "stocks": 37,
+    "stocks": 38,
     "intl": 15,
-    "bonds": 15,
-    "tips": 6,
-    "corp": 7,
     "hy": 3,
-    "reits": 5,
-    "commodities": 2,
-    "gold": 3,
-    "cash": 7,
-    "bitcoin": 0
+    "reits": 4,
+    "commodities": 3,
+    "gold": 2,
+    "bitcoin": 0,
+    "bonds": 13,
+    "tips": 7,
+    "corp": 7,
+    "cash": 8
    },
    "aggressive": {
     "stocks": 50,
     "intl": 22,
-    "bonds": 5,
-    "tips": 0,
-    "corp": 3,
     "hy": 5,
-    "reits": 7,
+    "reits": 6,
     "commodities": 4,
     "gold": 2,
-    "cash": 1,
-    "bitcoin": 1
+    "bitcoin": 1,
+    "bonds": 5,
+    "tips": 0,
+    "corp": 4,
+    "cash": 1
    }
   }
  }

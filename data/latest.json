@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-22T06:36:53Z",
+ "generated_at": "2026-11-22T18:32:21Z",
  "source": "Federal Reserve Bank of St. Louis (FRED)",
  "missing_series": [],
  "categories": [
@@ -19,7 +19,7 @@
  "signals": {
   "stocks": {
    "action": "Hold",
-   "score": -1,
+   "score": 0,
    "max_score": 5,
    "factors": [
     {
@@ -28,19 +28,19 @@
      "detail": "S&P 500 is 2.3% below its 200-day average."
     },
     {
-     "name": "Momentum vs. history",
-     "score": 0,
-     "detail": "Trailing 1-year price return is 8.0% vs. a long-run average near 10%. Within a normal range."
+     "name": "12-month momentum",
+     "score": 1,
+     "detail": "Over 12 months the S&P 500 returned 8.0% vs. about 3.8% from T-bills. Stocks are beating cash, and that tends to persist."
     },
     {
-     "name": "Fear gauge (VIX)",
+     "name": "Volatility (VIX)",
      "score": 0,
-     "detail": "VIX is 28.4. Normal range (13-30)."
+     "detail": "VIX is 28.4. Normal or calm (below 30)."
     },
     {
-     "name": "Yield curve",
+     "name": "Recession risk",
      "score": 0,
-     "detail": "10-year minus 3-month spread is 0.60 pts. Not inverted."
+     "detail": "Yield curve 0.60 pts; no confirmed recession warning."
     },
     {
      "name": "Credit stress",
@@ -94,8 +94,8 @@
   },
   "bonds": {
    "action": "Hold",
-   "score": 0,
-   "max_score": 4,
+   "score": -1,
+   "max_score": 5,
    "factors": [
     {
      "name": "Yield vs. 5-year average",
@@ -111,6 +111,11 @@
      "name": "Fed direction",
      "score": -1,
      "detail": "Fed funds rate changed +0.26 pts over 6 months. Rate hikes tend to push bond prices down."
+    },
+    {
+     "name": "Bond trend",
+     "score": -1,
+     "detail": "The 10-year yield is +0.53 pts vs. its 12-month average. Rising yields mean falling bond prices."
     },
     {
      "name": "Inflation",
@@ -431,17 +436,17 @@
     "bitcoin": 0
    },
    "suggested": {
-    "stocks": 19,
+    "stocks": 20,
     "intl": 8,
-    "bonds": 29,
-    "tips": 13,
-    "corp": 10,
     "hy": 0,
     "reits": 2,
     "commodities": 0,
     "gold": 3,
-    "cash": 16,
-    "bitcoin": 0
+    "bitcoin": 0,
+    "bonds": 25,
+    "tips": 13,
+    "corp": 10,
+    "cash": 19
    }
   },
   "moderate": {
@@ -461,17 +466,17 @@
     "bitcoin": 0
    },
    "suggested": {
-    "stocks": 37,
+    "stocks": 38,
     "intl": 15,
-    "bonds": 15,
-    "tips": 6,
-    "corp": 7,
     "hy": 3,
-    "reits": 5,
-    "commodities": 2,
-    "gold": 3,
-    "cash": 7,
-    "bitcoin": 0
+    "reits": 4,
+    "commodities": 3,
+    "gold": 2,
+    "bitcoin": 0,
+    "bonds": 13,
+    "tips": 7,
+    "corp": 7,
+    "cash": 8
    }
   },
   "aggressive": {
@@ -493,19 +498,23 @@
    "suggested": {
     "stocks": 50,
     "intl": 22,
-    "bonds": 5,
-    "tips": 0,
-    "corp": 3,
     "hy": 5,
-    "reits": 7,
+    "reits": 6,
     "commodities": 4,
     "gold": 2,
-    "cash": 1,
-    "bitcoin": 1
+    "bitcoin": 1,
+    "bonds": 5,
+    "tips": 0,
+    "corp": 4,
+    "cash": 1
    }
   }
  },
- "tilt": 0.3,
+ "tilt": 0.15,
+ "tilt_range": [
+  0.25,
+  1.75
+ ],
  "borrowing": {
   "loans": [
    {
