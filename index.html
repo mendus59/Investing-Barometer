@@ -44,7 +44,7 @@
 
     <section>
       <h2 id="alloc-h">Suggested allocation</h2>
-      <p class="hint">Starts from the <span class="profile-name"></span> baseline. Each Buy raises a slice by <span class="tilt"></span>% and each Sell cuts it by the same, then everything is scaled back to 100%.</p>
+      <p class="hint">Starts from the <span class="profile-name"></span> baseline. Each net factor point in a category's score moves its slice by <span class="tilt"></span>% (never below <span class="tilt-lo"></span>% or above <span class="tilt-hi"></span>% of baseline). Bonds, TIPS, corporate bonds and cash absorb whatever the growth slices give up or take.</p>
       <div class="table-wrap"><table id="allocation"></table></div>
     </section>
 
@@ -77,10 +77,15 @@
 
     <section>
       <h2 id="backtest-h">Backtest</h2>
-      <p class="hint" id="bt-intro"></p>
+      <div class="segmented" role="radiogroup" aria-label="Backtest period" id="bt-periods"></div>
+      <p class="hint" id="bt-intro" style="margin-top:10px"></p>
       <div class="chart-card">
         <div class="legend" id="bt-legend"></div>
         <div class="chart" id="bt-chart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="legend"><span id="bt-weight-note"></span></div>
+        <div class="chart" id="bt-weight"></div>
       </div>
       <div class="table-wrap"><table id="bt-stats"></table></div>
       <details class="assumptions"><summary>Backtest assumptions</summary><ul id="bt-notes"></ul></details>
@@ -120,6 +125,11 @@
           <li>A total of <strong>−2 or less</strong> is <em>Sell</em> (or <em>Underweight</em>).</li>
           <li>Anything in between is <em>Hold</em>. With fewer than two factors available, there's <em>No signal</em>.</li>
         </ul>
+        <p>The stock signal leans on two of the best-documented market rules: <em>trend following</em> (stay invested
+          while prices are above their 200-day average) and <em>time-series momentum</em> (stocks that beat cash over the
+          past year tend to keep doing so). It also trims risk when volatility spikes or a recession signal appears. These
+          rules mostly earn their keep by sidestepping part of long bear markets, so expect them to trail a 100% stock
+          portfolio in strong bull runs and to shine in crashes like 2000-02 and 2008.</p>
         <p>Signals are about broad index funds for each asset class, never individual stocks or bonds. For housing, the
           view is that of someone buying a home to live in: <em>Buy</em> means conditions favor buyers and <em>Sell</em>
           means a seller's market. ZIP code data comes from Zillow (home values and rents, monthly) and the Census

@@ -50,13 +50,33 @@ class Rules(unittest.TestCase):
             self.assertEqual(sum(p["core"].values()), 100, name)
 
     def test_allocation_tilts_and_sums_to_100(self):
-        sig = {k: {"action": "Hold"} for k, _ in u.CATEGORIES}
-        sig["stocks"]["action"] = "Buy"
-        sig["cash"]["action"] = "Underweight"
+        sig = {k: {"action": "Hold", "score": 0} for k, _ in u.CATEGORIES}
+        sig["stocks"] = {"action": "Buy", "score": 2}
+        sig["cash"] = {"action": "Underweight", "score": -2}
         for name, a in u.allocations(sig).items():
             self.assertEqual(sum(a["suggested"].values()), 100, name)
             self.assertGreaterEqual(a["suggested"]["stocks"], a["baseline"]["stocks"], name)
             self.assertLessEqual(a["suggested"]["cash"], a["baseline"]["cash"], name)
+
+    def test_risk_off_moves_money_into_defense(self):
+        core = u.PROFILES["aggressive"]["core"]
+        w = u.tilted(core, {"stocks": -4, "bonds": 0, "cash": 0})
+        self.assertEqual(sum(w.values()), 100)
+        self.assertEqual(w["stocks"], round(core["stocks"] * u.multiplier(-4)))
+        self.assertGreater(w["bonds"] + w["cash"], core["bonds"] + core["cash"])
+
+    def test_stocks_trend_and_momentum_turn_negative_in_a_decline(self):
+        end = date(2026, 10, 31)
+        days = [end - timedelta(days=i) for i in range(800)][::-1]
+        s = base()
+        # Rises for most of the window, then falls 30% over the last 6 months.
+        s["SP500"] = u.Series("SP500", [(d.isoformat(), 1000 * (1.0005 ** i if i < 620 else 1.0005 ** 620 * 0.998 ** (i - 620))) for i, d in enumerate(days)])
+        s["DGS3MO"] = u.Series("DGS3MO", [(d.isoformat(), 4.0) for d in days])
+        sig = u.stocks_signal(s, None)
+        names = {f["name"]: f["score"] for f in sig["factors"]}
+        self.assertEqual(names["Trend"], -1)
+        self.assertEqual(names["12-month momentum"], -1)
+        self.assertEqual(sig["action"], "Sell")
 
     def test_every_category_handles_missing_data(self):
         sigs = u.compute_signals(base())
@@ -81,7 +101,7 @@ class Rules(unittest.TestCase):
         s["DGS10"] = u.Series("DGS10", [(d.isoformat(), 4.0) for d in days])
         s["DGS3MO"] = u.Series("DGS3MO", [(d.isoformat(), 2.0) for d in days])
         s["VIXCLS"] = u.Series("VIXCLS", [(d.isoformat(), 20.0) for d in days])
-        bt = u.backtest(s)["backtest"]
+        bt = u.backtest(s)["backtest"]["periods"]["recent"]
         self.assertGreater(bt["months"], 24)
         mod = bt["profiles"]["moderate"]
         self.assertEqual(len(mod["curve"]), bt["months"] + 1)
