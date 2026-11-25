@@ -182,5 +182,97 @@
     "cash": 2
    }
   }
+ },
+ {
+  "date": "2026-11-25",
+  "stocks": {
+   "action": "Hold",
+   "score": -1
+  },
+  "intl": {
+   "action": "Hold",
+   "score": -1
+  },
+  "bonds": {
+   "action": "Hold",
+   "score": -1
+  },
+  "tips": {
+   "action": "Buy",
+   "score": 2
+  },
+  "corp": {
+   "action": "Hold",
+   "score": 0
+  },
+  "hy": {
+   "action": "Hold",
+   "score": -1
+  },
+  "reits": {
+   "action": "Sell",
+   "score": -2
+  },
+  "commodities": {
+   "action": "Hold",
+   "score": 0
+  },
+  "gold": {
+   "action": "Sell",
+   "score": -2
+  },
+  "cash": {
+   "action": "Hold",
+   "score": 1
+  },
+  "bitcoin": {
+   "action": "Sell",
+   "score": -2
+  },
+  "housing": {
+   "action": "Hold",
+   "score": 0
+  },
+  "allocation": {
+   "conservative": {
+    "stocks": 17,
+    "intl": 7,
+    "hy": 0,
+    "reits": 1,
+    "commodities": 0,
+    "gold": 2,
+    "bitcoin": 0,
+    "bonds": 27,
+    "tips": 14,
+    "corp": 11,
+    "cash": 21
+   },
+   "moderate": {
+    "stocks": 32,
+    "intl": 13,
+    "hy": 3,
+    "reits": 3,
+    "commodities": 2,
+    "gold": 2,
+    "bitcoin": 0,
+    "bonds": 17,
+    "tips": 8,
+    "corp": 9,
+    "cash": 11
+   },
+   "aggressive": {
+    "stocks": 43,
+    "intl": 19,
+    "hy": 4,
+    "reits": 5,
+    "commodities": 3,
+    "gold": 1,
+    "bitcoin": 1,
+    "bonds": 12,
+    "tips": 0,
+    "corp": 9,
+    "cash": 3
+   }
+  }
  }
 ]
