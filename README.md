@@ -1,5 +1,8 @@
 # Investing Barometer
 
+<!-- site-screenshot: docs/screenshot.jpg -->
+![Screenshot of Investing Barometer](docs/screenshot.jpg)
+
 A static web page, hosted on GitHub Pages, that reads current interest rates, bond yields, market index returns and
 housing data once a day and turns them into a simple **Buy / Hold / Sell** read for 12 categories, plus:
 
